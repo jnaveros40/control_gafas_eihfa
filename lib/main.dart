@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'footer.dart';
 
 /// Valores del firmware ESP32 (`codigoesp.ino`).
 const String targetDeviceName = 'VISOR_FAC';
@@ -295,102 +296,188 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
     }
   }
 
+  Future<void> _onToggleSwitch(bool value) async {
+    if (_isBusy) return;
+    if (value) {
+      await _onEncender();
+    } else {
+      await _onApagar();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Control de gafas de entrenamientos de pilotos de la EIHFA',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.primary,
-                    ),
-              ),
-              const SizedBox(height: 28),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          _isConnected
-                              ? Icons.bluetooth_connected
-                              : Icons.bluetooth_disabled,
-                          color: _isConnected
-                              ? Colors.green.shade700
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _isConnected ? 'BLE conectado' : 'BLE desconectado',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
+                    // Título
                     Text(
-                      _status,
+                      'Control de gafas de entrenamientos de pilotos de la EIHFA',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: colorScheme.primary,
                           ),
                     ),
+                    const SizedBox(height: 28),
+
+                    // Imagen de helicóptero
+                    Center(
+                      child: SizedBox(
+                        height: 150,
+                        child: Image.asset(
+                          'lib/public/helicoptero.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Icon(Icons.flight_takeoff, size: 100, color: colorScheme.primary),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Estado de conexión
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: _isConnected
+                              ? Colors.green.shade600.withValues(alpha: 0.5)
+                              : colorScheme.outlineVariant,
+                          width: 2,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                _isConnected
+                                    ? Icons.bluetooth_connected
+                                    : Icons.bluetooth_disabled,
+                                color: _isConnected
+                                    ? Colors.green.shade700
+                                    : colorScheme.onSurfaceVariant,
+                                size: 32,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                _isConnected ? 'BLE conectado' : 'BLE desconectado',
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _status,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+
+                    // Switch toggle
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: colorScheme.outlineVariant,
+                          width: 2,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Control de gafas',
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                              Switch(
+                                value: _isOn,
+                                onChanged: _isBusy ? null : _onToggleSwitch,
+                                activeColor: Colors.green.shade700,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _isOn
+                                  ? Colors.green.shade50
+                                  : Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _isOn
+                                    ? Colors.green.shade300
+                                    : Colors.red.shade300,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  _isOn ? Icons.power : Icons.power_off,
+                                  color: _isOn ? Colors.green.shade700 : Colors.red.shade700,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _isOn ? 'Estado: ENCENDIDO' : 'Estado: APAGADO',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: _isOn ? Colors.green.shade700 : Colors.red.shade700,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (_isBusy) ...[
+                            const SizedBox(height: 16),
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(width: 12),
+                                Text('Procesando...'),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
-              const Spacer(),
-              FilledButton.icon(
-                onPressed: _isBusy ? null : _onEncender,
-                icon: const Icon(Icons.power_settings_new),
-                label: const Text('Encender'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(56),
-                  backgroundColor: Colors.green.shade700,
-                  foregroundColor: Colors.white,
-                  textStyle: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.tonalIcon(
-                onPressed: _isBusy ? null : _onApagar,
-                icon: const Icon(Icons.power_off),
-                label: const Text('Apagar'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(56),
-                  textStyle: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              if (_isBusy) const Center(child: CircularProgressIndicator()),
-              if (!_isBusy)
-                Text(
-                  _isOn ? 'Estado lógico: ON' : 'Estado lógico: OFF',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              const Spacer(),
-            ],
-          ),
+            ),
+
+            // Footer
+            const Footer(),
+          ],
         ),
       ),
     );
