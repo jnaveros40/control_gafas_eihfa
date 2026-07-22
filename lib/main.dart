@@ -6,9 +6,9 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 /// Valores del firmware ESP32 (`codigoesp.ino`).
 const String targetDeviceName = 'VISOR_FAC';
-const Guid? targetServiceUuid =
+final Guid? targetServiceUuid =
     Guid('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
-const Guid? targetWriteCharacteristicUuid =
+final Guid? targetWriteCharacteristicUuid =
     Guid('beb5483e-36e1-4688-b7f5-ea07361b26a8');
 
 /// El ESP solo acepta exactamente "ON" (UTF-8, mayúsculas).
