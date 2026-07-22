@@ -1,0 +1,287 @@
+.footer-container {
+  width: 100%;
+  padding: var(--spacing-lg) 0;
+  margin-top: 0;
+  background-color: var(--bg-paper);
+  border-top: 2px solid var(--border-light);
+  box-shadow: 0 -2px 8px var(--overlay-light);
+}
+
+.footer-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-xl);
+}
+
+/* Secciones del footer */
+.footer-section {
+  display: flex;
+  align-items: center;
+}
+
+/* Izquierda - Brand */
+.footer-brand {
+  gap: var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.brand-logo {
+  font-size: 40px;
+  width: 120px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.brand-text h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.brand-text p {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Centro - Developer Card */
+.footer-developer {
+  flex: 1;
+  justify-content: center;
+}
+
+.developer-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border-light);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal);
+}
+
+.developer-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-primary);
+}
+
+.developer-logo {
+  width: 48px;
+  height: 48px;
+  position: relative;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.developer-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.developer-logo-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  color: var(--color-primary-contrast);
+  font-weight: 700;
+  font-size: 16px;
+  border-radius: var(--radius-md);
+}
+
+.developer-info {
+  text-align: center;
+}
+
+.developer-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.developer-link:hover {
+  opacity: 0.8;
+}
+
+.developer-text {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.developer-name {
+  font-weight: 700;
+  color: var(--color-info);
+  transition: all var(--transition-fast);
+}
+
+.developer-link:hover .developer-name {
+  text-decoration: underline;
+}
+
+.developer-version {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-success);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.whatsapp-button {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: #25D366;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+  color: white;
+}
+
+.whatsapp-button svg {
+  width: 32px;
+  height: 32px;
+}
+
+.whatsapp-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.5);
+}
+
+/* Derecha - Derechos */
+.footer-rights {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.footer-copyright {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.footer-entity {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .footer-content {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--spacing-lg);
+  }
+
+  .footer-brand,
+  .footer-developer,
+  .footer-rights {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .footer-rights {
+    align-items: center;
+  }
+
+  .developer-card {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .footer-container {
+    padding: var(--spacing-md) 0;
+  }
+
+  .footer-content {
+    padding: 0 var(--spacing-md);
+  }
+
+  .brand-logo {
+    font-size: 32px;
+    width: 90px;
+    height: 60px;
+  }
+
+  .brand-text h3 {
+    font-size: 18px;
+  }
+
+  .developer-card {
+    flex-direction: column;
+    padding: var(--spacing-md);
+    gap: var(--spacing-sm);
+  }
+
+  .developer-info {
+    width: 100%;
+  }
+
+  .footer-copyright {
+    font-size: 13px;
+  }
+
+  .footer-entity {
+    font-size: 11px;
+  }
+}
