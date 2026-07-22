@@ -11,9 +11,9 @@ final Guid? targetServiceUuid =
 final Guid? targetWriteCharacteristicUuid =
     Guid('beb5483e-36e1-4688-b7f5-ea07361b26a8');
 
-/// El ESP solo acepta exactamente "ON" (UTF-8, mayúsculas).
-/// Al recibirlo, pulsa el relé ~90 ms (no hay comando "OFF" en el firmware).
+/// El ESP acepta exactamente "ON" / "OFF" (UTF-8, mayúsculas).
 const String commandOn = 'ON';
+const String commandOff = 'OFF';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -256,7 +256,7 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
       if (!mounted) return;
       setState(() {
         _isOn = true;
-        _status = 'Pulso enviado ("$commandOn"). Relé ~90 ms.';
+        _status = 'Gafas ENCENDIDAS ("$commandOn" enviado)';
       });
     } catch (e) {
       await _setStatus('Error al encender: $e');
@@ -275,28 +275,19 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
     setState(() => _isBusy = true);
 
     try {
-      // El firmware actual no implementa "OFF": el relé se apaga solo tras ~90 ms.
       await _connectIfNeeded();
+      await _setStatus('Enviando "$commandOff"…');
+      await _writeCommand(commandOff);
       if (!mounted) return;
       setState(() {
         _isOn = false;
-        _status =
-            'Sin comando OFF en el ESP. El relé ya se desactiva solo tras el pulso.';
+        _status = 'Gafas APAGADAS ("$commandOff" enviado)';
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'El firmware solo acepta "ON" (pulso). No hay comando de apagado.',
-            ),
-          ),
-        );
-      }
     } catch (e) {
-      await _setStatus('Error: $e');
+      await _setStatus('Error al apagar: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('Error al apagar: $e')),
         );
       }
     } finally {

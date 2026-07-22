@@ -5,23 +5,24 @@
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
-#define RELAY_PIN 3   
+#define RELAY_PIN 3
 
-// Variables de control
-volatile bool triggerRelay = false;
-bool relayActive = false;
-unsigned long relayStart = 0;
-const unsigned long relayDuration = 90; // ms (ajústalo si necesitas)
+// true = relé encendido (activo en LOW)
+volatile bool relayOn = false;
+volatile bool commandPending = false;
+volatile bool pendingState = false; // true=ON, false=OFF
 
-// Clase para manejar escritura en la característica
-class MyCallbacks: public BLECharacteristicCallbacks {
+class MyCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
     String value = pCharacteristic->getValue();
+    value.trim();
 
     if (value == "ON") {
-      if (!relayActive) {   // evita múltiples disparos
-        triggerRelay = true;
-      }
+      pendingState = true;
+      commandPending = true;
+    } else if (value == "OFF") {
+      pendingState = false;
+      commandPending = true;
     } else {
       Serial.print("Comando desconocido: ");
       Serial.println(value);
@@ -34,8 +35,8 @@ void setup() {
 
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, HIGH); // apagado inicial (activo en LOW)
+  relayOn = false;
 
-  // Inicializa BLE
   BLEDevice::init("VISOR_FAC");
   BLEServer *pServer = BLEDevice::createServer();
 
@@ -59,27 +60,24 @@ void setup() {
 
   BLEDevice::startAdvertising();
 
-  Serial.println("Servidor BLE iniciado. Conéctate desde tu celular.");
+  Serial.println("Servidor BLE iniciado. Comandos: ON / OFF");
 }
 
 void loop() {
-
-  // Activar relé (simula pulsador)
-  if (triggerRelay && !relayActive) {
-    triggerRelay = false;
-    relayActive = true;
-
-    digitalWrite(RELAY_PIN, LOW); // activar
-    relayStart = millis();
-
-    Serial.println("Relé ACTIVADO");
+  if (!commandPending) {
+    return;
   }
 
-  // Desactivar relé después del tiempo
-  if (relayActive && millis() - relayStart >= relayDuration) {
-    digitalWrite(RELAY_PIN, HIGH); // desactivar
-    relayActive = false;
+  commandPending = false;
+  bool turnOn = pendingState;
 
-    Serial.println("Relé DESACTIVADO");
+  if (turnOn) {
+    digitalWrite(RELAY_PIN, LOW); // activar
+    relayOn = true;
+    Serial.println("Relé ENCENDIDO (ON)");
+  } else {
+    digitalWrite(RELAY_PIN, HIGH); // desactivar
+    relayOn = false;
+    Serial.println("Relé APAGADO (OFF)");
   }
 }
