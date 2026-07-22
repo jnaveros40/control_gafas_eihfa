@@ -62,16 +62,7 @@ class Footer extends StatelessWidget {
       children: [
         Row(
           children: [
-            SizedBox(
-              width: isMobile ? 70 : 90,
-              height: isMobile ? 50 : 60,
-              child: Image.asset(
-                'lib/public/eihfa.png',
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.school, size: 40),
-              ),
-            ),
+            
             const SizedBox(width: 12),
             SizedBox(
               width: isMobile ? 70 : 90,
@@ -87,26 +78,7 @@ class Footer extends StatelessWidget {
         ),
         if (!isMobile) ...[
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'EIHFA',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.primary,
-                ),
-              ),
-              Text(
-                'Escuela de Infantería Aérea',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
+          
         ],
       ],
     );
@@ -216,9 +188,9 @@ class Footer extends StatelessWidget {
       crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.end,
       children: [
         Text(
-          '© $currentYear Todos los derechos reservados',
+          '© 2026 Todos los derechos reservados',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 12,
             color: colorScheme.onSurface,
             fontWeight: FontWeight.w500,
           ),
@@ -226,7 +198,7 @@ class Footer extends StatelessWidget {
         Text(
           'EIHFA - FAC',
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 10,
             color: colorScheme.onSurfaceVariant,
           ),
         ),

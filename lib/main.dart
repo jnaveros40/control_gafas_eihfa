@@ -257,7 +257,7 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
       if (!mounted) return;
       setState(() {
         _isOn = true;
-        _status = 'Gafas ENCENDIDAS ("$commandOn" enviado)';
+        _status = '';
       });
     } catch (e) {
       await _setStatus('Error al encender: $e');
@@ -282,7 +282,7 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
       if (!mounted) return;
       setState(() {
         _isOn = false;
-        _status = 'Gafas APAGADAS ("$commandOff" enviado)';
+        _status = '';
       });
     } catch (e) {
       await _setStatus('Error al apagar: $e');
