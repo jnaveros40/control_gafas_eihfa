@@ -30,12 +30,12 @@ class GafasEihfaApp extends StatelessWidget {
     return MaterialApp(
       title: 'Control de gafas EIHFA',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0B3D5C),
-          brightness: Brightness.light,
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF0B0E14),
+        primaryColor: const Color(0xFF00FF66),
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF00FF66),
         ),
-        useMaterial3: true,
       ),
       home: const ControlGafasPage(),
     );
@@ -257,7 +257,7 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
       if (!mounted) return;
       setState(() {
         _isOn = true;
-        _status = 'Gafas ENCENDIDAS ("$commandOn" enviado)';
+        _status = 'Gafas ENCENDIDAS';
       });
     } catch (e) {
       await _setStatus('Error al encender: $e');
@@ -282,7 +282,7 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
       if (!mounted) return;
       setState(() {
         _isOn = false;
-        _status = 'Gafas APAGADAS ("$commandOff" enviado)';
+        _status = 'Gafas APAGADAS';
       });
     } catch (e) {
       await _setStatus('Error al apagar: $e');
@@ -307,169 +307,300 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Título
-                    Text(
-                      'Control de gafas de entrenamientos de pilotos de la EIHFA',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: colorScheme.primary,
-                          ),
-                    ),
-                    const SizedBox(height: 28),
-
-                    // Imagen de helicóptero
-                    Center(
-                      child: SizedBox(
-                        height: 150,
-                        child: Image.asset(
-                          'lib/public/helicoptero.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Icon(Icons.flight_takeoff, size: 100, color: colorScheme.primary),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-
-                    // Estado de conexión
+                    // --- SECCIÓN 1 Y 2: HEADER (CON FONDO HEAD.PNG) Y LABELS ---
                     Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: _isConnected
-                              ? Colors.green.shade600.withValues(alpha: 0.5)
-                              : colorScheme.outlineVariant,
-                          width: 2,
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        image: DecorationImage(
+                          image: AssetImage('lib/public/LogosFAC/head.png'),
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
                         ),
                       ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                       child: Column(
                         children: [
+                          // Escudos superiores
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Image.asset(
+                                'lib/public/LogosFAC/Escudo Fuerza Aeroespacial Colombiana- Vertical.png',
+                                width: 80,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(Icons.shield, color: Colors.white54, size: 50),
+                              ),
+                              Image.asset(
+                                'lib/public/LogosFAC/ESCUDO CACOM-4.png',
+                                width: 80,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(Icons.security, color: Colors.white54, size: 50),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 40),
+
+                          // Labels centrales
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                _isConnected
-                                    ? Icons.bluetooth_connected
-                                    : Icons.bluetooth_disabled,
-                                color: _isConnected
-                                    ? Colors.green.shade700
-                                    : colorScheme.onSurfaceVariant,
-                                size: 32,
+                              Container(width: 30, height: 3, color: const Color(0xFF00FF66)),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'VISOR FAC',
+                                style: TextStyle(
+                                  color: Color(0xFF00FF66),
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 4,
+                                ),
                               ),
                               const SizedBox(width: 12),
-                              Text(
-                                _isConnected ? 'BLE conectado' : 'BLE desconectado',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
+                              Container(width: 30, height: 3, color: const Color(0xFF00FF66)),
                             ],
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _status,
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'SISTEMA DE LIMITACIÓN VISUAL',
+                            style: TextStyle(color: Colors.white70, fontSize: 12, letterSpacing: 2),
                           ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'EIHFA - ENTRENAMIENTO QUE SALVAN VIDAS',
+                            style: TextStyle(color: Color(0xFF00FF66), fontSize: 10, letterSpacing: 1),
+                          ),
+                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 40),
 
-                    // Switch toggle
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: colorScheme.outlineVariant,
-                          width: 2,
-                        ),
-                      ),
+                    // --- SECCIÓN 3 Y 4: TARJETAS DE DATOS ---
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
                       child: Column(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Control de gafas',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                              Switch(
-                                value: _isOn,
-                                onChanged: _isBusy ? null : _onToggleSwitch,
-                                activeColor: Colors.green.shade700,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
+                          // Tarjeta de Conexión y Señales
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: _isOn
-                                  ? Colors.green.shade50
-                                  : Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: _isOn
-                                    ? Colors.green.shade300
-                                    : Colors.red.shade300,
-                                width: 1.5,
-                              ),
+                              color: const Color(0xFF131B26),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white10),
                             ),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  _isOn ? Icons.power : Icons.power_off,
-                                  color: _isOn ? Colors.green.shade700 : Colors.red.shade700,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _isOn ? 'Estado: ENCENDIDO' : 'Estado: APAGADO',
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: _isOn ? Colors.green.shade700 : Colors.red.shade700,
+                                // Estado BLE Real
+                                Expanded(
+                                  flex: 5,
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF0B121A),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: _isConnected 
+                                                ? const Color(0xFF00FF66).withOpacity(0.3) 
+                                                : Colors.redAccent.withOpacity(0.3),
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.bluetooth,
+                                          color: _isConnected ? const Color(0xFF00FF66) : Colors.redAccent,
+                                          size: 20,
+                                        ),
                                       ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('CONEXIÓN BLE', style: TextStyle(color: Colors.white54, fontSize: 9)),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _isConnected ? 'CONECTADO' : 'DESCONECTADO',
+                                              style: TextStyle(
+                                                color: _isConnected ? const Color(0xFF00FF66) : Colors.redAccent,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _device?.platformName.isNotEmpty == true 
+                                                  ? _device!.platformName 
+                                                  : 'Visor_FAC_01',
+                                              style: const TextStyle(color: Colors.white70, fontSize: 10),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            // Indicador dinámico de estado BLE
+                                            Text(
+                                              _status,
+                                              style: const TextStyle(color: Colors.white38, fontSize: 8),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                
+                                // Indicadores N/A
+                                Expanded(
+                                  flex: 6,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      _buildStatusColumn('SEÑAL', 'N/A', Icons.signal_cellular_alt, Colors.grey),
+                                      _buildStatusColumn('BATERÍA', 'N/A', Icons.battery_unknown, Colors.grey),
+                                      _buildStatusColumn('ESTADO', 'N/A', Icons.help_outline, Colors.grey),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          if (_isBusy) ...[
-                            const SizedBox(height: 16),
-                            const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                          const SizedBox(height: 20),
+
+                          // Tarjeta de Control de Gafas
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF131B26),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                CircularProgressIndicator(),
-                                SizedBox(width: 12),
-                                Text('Procesando...'),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'CONTROL DE GAFAS',
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1),
+                                    ),
+                                    Switch(
+                                      value: _isOn,
+                                      activeColor: Colors.white,
+                                      activeTrackColor: const Color(0xFF00FF66),
+                                      inactiveThumbColor: Colors.white54,
+                                      inactiveTrackColor: Colors.redAccent.withOpacity(0.5),
+                                      onChanged: _isBusy ? null : _onToggleSwitch,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0B121A),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: _isOn 
+                                          ? const Color(0xFF00FF66).withOpacity(0.2) 
+                                          : Colors.redAccent.withOpacity(0.2),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      // Imagen del Casco
+                                      Container(
+                                        width: 90,
+                                        height: 90,
+                                        decoration: BoxDecoration(
+                                          color: Colors.black54,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.asset(
+                                            'lib/public/LogosFAC/casco.png',
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) => 
+                                                const Icon(Icons.security, size: 36, color: Colors.white54),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      
+                                      // Estado dinámico
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'ESTADO ACTUAL', 
+                                              style: TextStyle(
+                                                color: _isOn ? const Color(0xFF00FF66) : Colors.redAccent, 
+                                                fontSize: 10, 
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _isOn ? 'ENCENDIDO' : 'APAGADO',
+                                              style: TextStyle(
+                                                color: _isOn ? const Color(0xFF00FF66) : Colors.redAccent,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            const Text(
+                                              'Sistema operativo y limitación visual activa.',
+                                              style: TextStyle(color: Colors.white70, fontSize: 11),
+                                            ),
+                                            // Progress indicator visual mientras envía datos
+                                            if (_isBusy) ...[
+                                              const SizedBox(height: 8),
+                                              const LinearProgressIndicator(color: Color(0xFF00FF66), backgroundColor: Colors.black12),
+                                            ]
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      
+                                      // Ícono de Poder
+                                      Container(
+                                        width: 50,
+                                        height: 50,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: _isOn ? const Color(0xFF00FF66) : Colors.redAccent, 
+                                            width: 2,
+                                          ),
+                                          color: const Color(0xFF0D1612),
+                                        ),
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.power_settings_new,
+                                            color: _isOn ? const Color(0xFF00FF66) : Colors.redAccent,
+                                            size: 24,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
-                          ],
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -480,6 +611,20 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
           ],
         ),
       ),
+    );
+  }
+
+  // Widget auxiliar para las columnas "N/A"
+  Widget _buildStatusColumn(String title, String value, IconData icon, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(title, style: const TextStyle(color: Colors.white54, fontSize: 8)),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11)),
+        const SizedBox(height: 4),
+        Icon(icon, color: color, size: 16),
+      ],
     );
   }
 }
