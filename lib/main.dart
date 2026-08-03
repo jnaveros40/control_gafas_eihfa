@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'footer.dart';
 
@@ -95,20 +95,9 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
   Future<void> _requestPermissions() async {
     if (!Platform.isAndroid) return;
 
-    final perms = <Permission>[];
-
-    // Android 12+ permissions
-    perms.add(Permission.bluetoothScan);
-    perms.add(Permission.bluetoothConnect);
-    perms.add(Permission.bluetooth);
-
-    // Older Android versions may require location for BLE scanning
-    perms.add(Permission.locationWhenInUse);
-
-    final statuses = await perms.request();
-
-    // If any required permission is denied, throw so UI can show an error
-    if (statuses.values.any((s) => s.isDenied || s.isPermanentlyDenied)) {
+    const channel = MethodChannel('com.example.control_gafas_eihfa/permissions');
+    final granted = await channel.invokeMethod<bool>('requestPermissions') ?? false;
+    if (!granted) {
       throw Exception('Permisos necesarios para Bluetooth denegados. Habilítalos en la configuración.');
     }
   }
