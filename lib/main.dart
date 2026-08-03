@@ -55,6 +55,10 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
   BluetoothDevice? _device;
   BluetoothCharacteristic? _writeCharacteristic;
   StreamSubscription<BluetoothConnectionState>? _connectionSubscription;
+  
+  // Nuevas variables para medir la señal
+  Timer? _rssiTimer;
+  int? _rssi;
 
   bool _isBusy = false;
   bool _isConnected = false;
@@ -63,9 +67,35 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
 
   @override
   void dispose() {
+    _stopRssiTimer();
     _connectionSubscription?.cancel();
     unawaited(_disconnectQuietly());
     super.dispose();
+  }
+
+  // Rutina para detener la lectura de la señal
+  void _stopRssiTimer() {
+    _rssiTimer?.cancel();
+    _rssiTimer = null;
+  }
+
+  // Rutina para iniciar la lectura de la señal periódicamente
+  void _startRssiTimer() {
+    _stopRssiTimer();
+    _rssiTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      if (_isConnected && _device != null) {
+        try {
+          final rssi = await _device!.readRssi();
+          if (mounted) {
+            setState(() {
+              _rssi = rssi;
+            });
+          }
+        } catch (e) {
+          // Ignorar errores esporádicos de lectura
+        }
+      }
+    });
   }
 
   Future<void> _disconnectQuietly() async {
@@ -204,6 +234,10 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
         if (!connected) {
           _writeCharacteristic = null;
           _status = 'Desconectado';
+          _stopRssiTimer();
+          _rssi = null;
+        } else {
+          _startRssiTimer(); // Iniciar medición de señal al conectar
         }
       });
     });
@@ -470,13 +504,13 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
                                   ),
                                 ),
                                 
-                                // Indicadores N/A
+                                // Indicadores
                                 Expanded(
                                   flex: 6,
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                     children: [
-                                      _buildStatusColumn('SEÑAL', 'N/A', Icons.signal_cellular_alt, Colors.grey),
+                                      _buildSignalColumn(), // Modificado para barras dinámicas
                                       _buildStatusColumn('BATERÍA', 'N/A', Icons.battery_unknown, Colors.grey),
                                       _buildStatusColumn('ESTADO', 'N/A', Icons.help_outline, Colors.grey),
                                     ],
@@ -628,7 +662,61 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
     );
   }
 
-  // Widget auxiliar para las columnas "N/A"
+  // Widget de Señal Dinámico
+  Widget _buildSignalColumn() {
+    String text = 'N/A';
+    Color color = Colors.grey;
+    int bars = 0;
+
+    if (_rssi != null && _isConnected) {
+      if (_rssi! >= -65) {
+        text = 'FUERTE';
+        color = const Color(0xFF00FF66);
+        bars = 4;
+      } else if (_rssi! >= -75) {
+        text = 'BUENA';
+        color = const Color(0xFF00FF66);
+        bars = 3;
+      } else if (_rssi! >= -85) {
+        text = 'DÉBIL';
+        color = Colors.orangeAccent;
+        bars = 2;
+      } else {
+        text = 'MALA';
+        color = Colors.redAccent;
+        bars = 1;
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Text('SEÑAL', style: TextStyle(color: Colors.white54, fontSize: 8)),
+        const SizedBox(height: 4),
+        Text(text, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11)),
+        const SizedBox(height: 6),
+        // Dibujo de las barras de señal
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: List.generate(4, (index) {
+            bool active = index < bars;
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 1.5),
+              width: 3.5,
+              height: 6.0 + (index * 3), // Alturas escalonadas (6, 9, 12, 15)
+              decoration: BoxDecoration(
+                color: active ? color : Colors.white24,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  // Widget auxiliar para las columnas de Batería y Estado
   Widget _buildStatusColumn(String title, String value, IconData icon, Color color) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
