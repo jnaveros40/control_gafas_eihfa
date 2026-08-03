@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'footer.dart';
 
@@ -87,6 +89,27 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
     final adapterState = await FlutterBluePlus.adapterState.first;
     if (adapterState != BluetoothAdapterState.on) {
       throw Exception('Activa el Bluetooth del sistema e inténtalo de nuevo.');
+    }
+  }
+
+  Future<void> _requestPermissions() async {
+    if (!Platform.isAndroid) return;
+
+    final perms = <Permission>[];
+
+    // Android 12+ permissions
+    perms.add(Permission.bluetoothScan);
+    perms.add(Permission.bluetoothConnect);
+    perms.add(Permission.bluetooth);
+
+    // Older Android versions may require location for BLE scanning
+    perms.add(Permission.locationWhenInUse);
+
+    final statuses = await perms.request();
+
+    // If any required permission is denied, throw so UI can show an error
+    if (statuses.values.any((s) => s.isDenied || s.isPermanentlyDenied)) {
+      throw Exception('Permisos necesarios para Bluetooth denegados. Habilítalos en la configuración.');
     }
   }
 
@@ -205,6 +228,8 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
       return;
     }
 
+    // Ensure runtime permissions before enabling/scanning Bluetooth
+    await _requestPermissions();
     await _ensureBluetoothOn();
     await _setStatus('Buscando dispositivo…');
 

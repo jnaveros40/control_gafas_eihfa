@@ -1,4 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Bluetooth permissions (Android 12+ and below) -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <!-- Location permission may be required on older Android versions for BLE scanning -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- Optional: declare BLE feature (not required but helps Play Store filtering) -->
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <application
         android:label="control_gafas_eihfa"
         android:name="${applicationName}"
