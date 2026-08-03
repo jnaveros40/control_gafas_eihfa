@@ -5,232 +5,138 @@ class Footer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: colorScheme.outlineVariant, width: 2),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
+      // Fondo azul oscuro para todo el footer
+      color: const Color(0xFF0A1628), 
+      padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 1. Sección Izquierda: Logo Fuerza Aeroespacial
+          _buildLeftLogo(),
+
+          // 2. Sección Central: Tarjeta de Desarrollador
+          _buildDeveloperCard(),
+
+          // 3. Sección Derecha: Escudo EIHFA
+          _buildRightLogo(),
         ],
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isMobile = constraints.maxWidth < 640;
-
-          if (isMobile) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _buildBrandSection(colorScheme, isMobile: true),
-                const SizedBox(height: 16),
-                _buildDeveloperCard(colorScheme, isMobile: true),
-                const SizedBox(height: 16),
-                _buildRightsSection(colorScheme, isMobile: true),
-              ],
-            );
-          }
-
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _buildBrandSection(colorScheme),
-              _buildDeveloperCard(colorScheme),
-              _buildRightsSection(colorScheme),
-            ],
-          );
-        },
       ),
     );
   }
 
-  Widget _buildBrandSection(ColorScheme colorScheme, {bool isMobile = false}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Row(
-          children: [
-            SizedBox(
-              width: isMobile ? 70 : 90,
-              height: isMobile ? 50 : 60,
-              child: Image.asset(
-                'lib/public/eihfa.png',
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.school, size: 40),
-              ),
-            ),
-            const SizedBox(width: 12),
-            SizedBox(
-              width: isMobile ? 70 : 90,
-              height: isMobile ? 50 : 60,
-              child: Image.asset(
-                'lib/public/fac.png',
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.flight, size: 40),
-              ),
+  Widget _buildLeftLogo() {
+    return SizedBox(
+      width: 100, // Ajusta el tamaño según necesites
+      height: 50,
+      child: Image.asset(
+        'lib/public/LogosFAC/Marca Fuerza Aeroespacial Colombiana-Blanco.png',
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.flight_takeoff, color: Colors.white54, size: 24),
+            SizedBox(height: 4),
+            Text(
+              'LOGO FAC',
+              style: TextStyle(color: Colors.white54, fontSize: 8),
             ),
           ],
         ),
-        if (!isMobile) ...[
-          const SizedBox(width: 16),
+      ),
+    );
+  }
+
+  Widget _buildDeveloperCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF050B14), // Un azul aún más oscuro para que la caja resalte ligeramente
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white10, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Logo IngNavs (Circular)
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.orangeAccent.withOpacity(0.5)),
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'lib/public/LogosFAC/IngNavs.png',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => const Center(
+                  child: Text(
+                    'NG',
+                    style: TextStyle(
+                      color: Colors.orangeAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Textos del desarrollador
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'EIHFA',
+              const Text(
+                'Desarrollado por: Ing Navs',
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.primary,
+                  fontSize: 11,
+                  color: Colors.white, 
                 ),
               ),
-              Text(
-                'Escuela de Infantería Aérea',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  _PulsingDot(),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Versión 1.0.0',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ],
-      ],
-    );
-  }
-
-  Widget _buildDeveloperCard(ColorScheme colorScheme, {bool isMobile = false}) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: isMobile ? 12 : 16),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outlineVariant, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: isMobile
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildDeveloperLogo(colorScheme),
-                const SizedBox(height: 8),
-                _buildDeveloperInfo(colorScheme),
-              ],
-            )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildDeveloperLogo(colorScheme),
-                const SizedBox(width: 16),
-                _buildDeveloperInfo(colorScheme),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildDeveloperLogo(ColorScheme colorScheme) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.asset(
-          'lib/public/IngNavs.png',
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => Center(
-            child: Text(
-              'IN',
-              style: TextStyle(
-                color: colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.w700,
-                fontSize: 18,
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
 
-  Widget _buildDeveloperInfo(ColorScheme colorScheme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          'Desarrollado por: Ing Navs',
-          style: TextStyle(
-            fontSize: 14,
-            color: colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Row(
+  Widget _buildRightLogo() {
+    return SizedBox(
+      width: 50, // Ajusta el tamaño según necesites
+      height: 60,
+      child: Image.asset(
+        'lib/public/LogosFAC/ESCUDO EIHFA.png',
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildStatusDot(),
-            const SizedBox(width: 6),
+          children: const [
+            Icon(Icons.shield, color: Colors.white54, size: 24),
+            SizedBox(height: 4),
             Text(
-              'Versión 1.0.0',
-              style: TextStyle(
-                fontSize: 12,
-                color: colorScheme.onSurfaceVariant,
-              ),
+              'EIHFA',
+              style: TextStyle(color: Colors.white54, fontSize: 8),
             ),
           ],
         ),
-      ],
-    );
-  }
-
-  Widget _buildStatusDot() {
-    return _PulsingDot();
-  }
-
-  Widget _buildRightsSection(ColorScheme colorScheme, {bool isMobile = false}) {
-    final currentYear = DateTime.now().year;
-    return Column(
-      crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.end,
-      children: [
-        Text(
-          '© $currentYear Todos los derechos reservados',
-          style: TextStyle(
-            fontSize: 14,
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        Text(
-          'EIHFA - FAC',
-          style: TextStyle(
-            fontSize: 12,
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -252,7 +158,7 @@ class _PulsingDotState extends State<_PulsingDot>
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0.5, end: 1.0).animate(_controller);
+    _animation = Tween<double>(begin: 0.3, end: 1.0).animate(_controller);
   }
 
   @override
@@ -269,10 +175,10 @@ class _PulsingDotState extends State<_PulsingDot>
         return Opacity(
           opacity: _animation.value,
           child: Container(
-            width: 8,
-            height: 8,
+            width: 7,
+            height: 7,
             decoration: const BoxDecoration(
-              color: Colors.green,
+              color: Color(0xFF00FF66),
               shape: BoxShape.circle,
             ),
           ),
