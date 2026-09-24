@@ -51,7 +51,7 @@ const int PWM_RES  = 12;     // 12 bits -> 4096 cuentas
 const int PWM_CH = 0;
 
 // Duty maximo de la ventana util
-const float DUTY_TOPE = 3.0f;
+const float DUTY_TOPE = 8.0f;
 
 
 // ---------------- Bateria ----------------
@@ -141,12 +141,14 @@ const uint32_t AP_CHEQUEO_MS = 10000;
 
 void pwmInit() {
 
-#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  Serial.printf("-> pwmInit(): Configurando pin %d a %d Hz, %d bits de resolucion\n", PWM_PIN, PWM_FREQ, PWM_RES);
 
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  Serial.println("-> pwmInit(): API ESP32 Core v3+ (ledcAttach)");
   ledcAttach(PWM_PIN, PWM_FREQ, PWM_RES);
 
 #else
-
+  Serial.println("-> pwmInit(): API ESP32 Core v2 (ledcSetup/Attach)");
   ledcSetup(PWM_CH, PWM_FREQ, PWM_RES);
   ledcAttachPin(PWM_PIN, PWM_CH);
 
@@ -167,7 +169,7 @@ void aplicarNivel() {
 #endif
 
   Serial.printf(
-    "nivel %lu/%lu | %.1f%% usuario | duty %.3f%% | ton %.3f us\n",
+    "-> aplicarNivel(): nivel %lu/%lu | %.1f%% usuario | duty %.3f%% | ton %.3f us\n",
 
     (unsigned long)nivel,
     (unsigned long)RAW_MAX,
@@ -186,7 +188,11 @@ void aplicarNivel() {
 
 void adcBateriaInit() {
 
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  analogSetAttenuation(ADC_11db);
+#else
   analogSetPinAttenuation(BAT_ADC_PIN, ADC_11db);
+#endif
 }
 
 
@@ -251,7 +257,7 @@ void actualizarBateriaSiToca() {
   batPorcentaje = voltajeAPorcentaje(batVoltajeMv);
 
   Serial.printf(
-    "bateria: %u mV (%.2f V) -> %u%%\n",
+    "-> bateria: %u mV (%.2f V) -> %u%%\n",
     batVoltajeMv,
     batVoltajeMv / 1000.0f,
     batPorcentaje
@@ -875,7 +881,7 @@ void handleRoot() {
 void handleSet() {
 
   if(!server.hasArg("n")){
-
+    Serial.println("-> handleSet(): ERROR, peticion sin 'n'");
     server.send(
       400,
       "text/plain",
@@ -885,25 +891,25 @@ void handleSet() {
     return;
   }
 
+  String argN = server.arg("n");
+  Serial.printf("-> handleSet(): Peticion WiFi recibida n = %s\n", argN.c_str());
 
-  long n =
-    server.arg("n").toInt();
+  long n = argN.toInt();
 
-
-  if(n < 0)
+  if(n < 0) {
+    Serial.println("-> handleSet(): 'n' < 0, limitando a 0");
     n = 0;
+  }
 
-
-  if(n > (long)RAW_MAX)
+  if(n > (long)RAW_MAX) {
+    Serial.printf("-> handleSet(): 'n' > RAW_MAX (%lu), limitando\n", (unsigned long)RAW_MAX);
     n = RAW_MAX;
+  }
 
+  nivel = (uint32_t)n;
 
-  nivel =
-    (uint32_t)n;
-
-
+  Serial.println("-> handleSet(): Se actualizo el 'nivel', enviando al hardware...");
   aplicarNivel();
-
 
   server.send(
     200,
