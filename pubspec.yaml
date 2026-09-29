@@ -100,3 +100,9 @@ flutter_native_splash:
     image: lib/public/IngNavs.png
     icon_background_color: "#0B0E14"
 
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "lib/public/LogosFAC/casco.png"
+
