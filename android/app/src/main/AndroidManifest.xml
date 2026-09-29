@@ -11,7 +11,7 @@
     <!-- Optional: declare BLE feature (not required but helps Play Store filtering) -->
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <application
-        android:label="control_gafas_eihfa"
+        android:label="Gafas IFR"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
