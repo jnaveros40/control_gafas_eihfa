@@ -64,6 +64,9 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
   Timer? _rssiTimer;
   int? _rssi;
   int? _batteryLevel;
+  double? _batteryVoltage;
+  
+  double _sliderValue = 100.0;
 
   bool _isBusy = false;
   bool _isConnected = false;
@@ -243,11 +246,22 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
       _batterySubscription = char.onValueReceived.listen((value) {
         if (value.isNotEmpty) {
           final strValue = utf8.decode(value);
-          final intValue = int.tryParse(strValue);
-          if (intValue != null && mounted) {
-            setState(() {
-              _batteryLevel = intValue;
-            });
+          final parts = strValue.split(',');
+          if (parts.isNotEmpty) {
+            final intValue = int.tryParse(parts[0]);
+            double? voltValue;
+            if (parts.length > 1) {
+              final mvValue = int.tryParse(parts[1]);
+              if (mvValue != null) {
+                voltValue = mvValue / 1000.0;
+              }
+            }
+            if (intValue != null && mounted) {
+              setState(() {
+                _batteryLevel = intValue;
+                if (voltValue != null) _batteryVoltage = voltValue;
+              });
+            }
           }
         }
       });
@@ -258,11 +272,22 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
         final value = await char.read();
         if (value.isNotEmpty) {
           final strValue = utf8.decode(value);
-          final intValue = int.tryParse(strValue);
-          if (intValue != null && mounted) {
-            setState(() {
-              _batteryLevel = intValue;
-            });
+          final parts = strValue.split(',');
+          if (parts.isNotEmpty) {
+            final intValue = int.tryParse(parts[0]);
+            double? voltValue;
+            if (parts.length > 1) {
+              final mvValue = int.tryParse(parts[1]);
+              if (mvValue != null) {
+                voltValue = mvValue / 1000.0;
+              }
+            }
+            if (intValue != null && mounted) {
+              setState(() {
+                _batteryLevel = intValue;
+                if (voltValue != null) _batteryVoltage = voltValue;
+              });
+            }
           }
         }
       } catch (e) {
@@ -282,6 +307,7 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
           _writeCharacteristic = null;
           _batteryCharacteristic = null;
           _batteryLevel = null;
+          _batteryVoltage = null;
           _batterySubscription?.cancel();
           _status = 'Desconectado';
           _stopRssiTimer();
@@ -350,12 +376,13 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
 
     try {
       await _connectIfNeeded();
-      await _setStatus('Enviando "$commandOn"…');
-      await _writeCommand(commandOn);
+      final pct = _sliderValue.toInt();
+      await _setStatus('Enviando nivel $pct%…');
+      await _writeCommand('PCT:$pct');
       if (!mounted) return;
       setState(() {
         _isOn = true;
-        _status = 'Gafas ENCENDIDAS';
+        _status = 'Gafas ENCENDIDAS ($pct%)';
       });
     } catch (e) {
       await _setStatus('Error al encender: $e');
@@ -375,8 +402,8 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
 
     try {
       await _connectIfNeeded();
-      await _setStatus('Enviando "$commandOff"…');
-      await _writeCommand(commandOff);
+      await _setStatus('Apagando gafas…');
+      await _writeCommand('PCT:0');
       if (!mounted) return;
       setState(() {
         _isOn = false;
@@ -391,6 +418,26 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
       }
     } finally {
       if (mounted) setState(() => _isBusy = false);
+    }
+  }
+
+  Future<void> _onSliderChangeEnd(double value) async {
+    if (!_isConnected) return;
+    try {
+      await _writeCommand('PCT:${value.toInt()}');
+      if (mounted && value > 0 && !_isOn) {
+        setState(() {
+          _isOn = true;
+          _status = 'Gafas ENCENDIDAS (${value.toInt()}%)';
+        });
+      } else if (mounted && value == 0 && _isOn) {
+        setState(() {
+          _isOn = false;
+          _status = 'Gafas APAGADAS';
+        });
+      }
+    } catch (e) {
+      // Ignorar errores esporádicos al deslizar
     }
   }
 
@@ -563,7 +610,7 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
                                       _buildSignalColumn(), // Modificado para barras dinámicas
                                       _buildStatusColumn(
                                         'BATERÍA',
-                                        _batteryLevel != null ? '$_batteryLevel%' : 'N/A',
+                                        _batteryLevel != null ? '$_batteryLevel%\n${_batteryVoltage?.toStringAsFixed(2) ?? "--"}V' : 'N/A',
                                         _batteryLevel != null
                                             ? (_batteryLevel! > 20 ? Icons.battery_full : Icons.battery_alert)
                                             : Icons.battery_unknown,
@@ -571,7 +618,12 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
                                             ? (_batteryLevel! > 20 ? const Color(0xFF00FF66) : Colors.redAccent)
                                             : Colors.grey,
                                       ),
-                                      _buildStatusColumn('ESTADO', 'N/A', Icons.help_outline, Colors.grey),
+                                      _buildStatusColumn(
+                                        'ESTADO', 
+                                        _isOn ? '${_sliderValue.toInt()}%' : 'OFF', 
+                                        _isOn ? Icons.visibility : Icons.visibility_off, 
+                                        _isOn ? const Color(0xFF00FF66) : Colors.grey
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -702,6 +754,48 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
                                     ],
                                   ),
                                 ),
+                                
+                                const SizedBox(height: 20),
+                                const Text(
+                                  'NIVEL DE OSCURECIMIENTO',
+                                  style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.brightness_5, color: Colors.white54, size: 18),
+                                    Expanded(
+                                      child: SliderTheme(
+                                        data: SliderThemeData(
+                                          activeTrackColor: const Color(0xFF00FF66),
+                                          inactiveTrackColor: Colors.white12,
+                                          thumbColor: Colors.white,
+                                          overlayColor: const Color(0xFF00FF66).withOpacity(0.2),
+                                          trackHeight: 4,
+                                        ),
+                                        child: Slider(
+                                          value: _sliderValue,
+                                          min: 0,
+                                          max: 100,
+                                          divisions: 100,
+                                          onChanged: _isConnected ? (val) {
+                                            setState(() {
+                                              _sliderValue = val;
+                                            });
+                                          } : null,
+                                          onChangeEnd: _isConnected ? _onSliderChangeEnd : null,
+                                        ),
+                                      ),
+                                    ),
+                                    const Icon(Icons.brightness_3, color: Colors.white54, size: 18),
+                                  ],
+                                ),
+                                Center(
+                                  child: Text(
+                                    '${_sliderValue.toInt()}%',
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -782,7 +876,7 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
       children: [
         Text(title, style: const TextStyle(color: Colors.white54, fontSize: 8)),
         const SizedBox(height: 4),
-        Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11)),
+        Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center),
         const SizedBox(height: 4),
         Icon(icon, color: color, size: 16),
       ],

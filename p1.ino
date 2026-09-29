@@ -199,6 +199,11 @@ class MyPWMCallbacks : public BLECharacteristicCallbacks {
         newNivel = RAW_MAX;
       } else if (value == "OFF") {
         newNivel = RAW_MIN;
+      } else if (value.startsWith("PCT:")) {
+        long pct = value.substring(4).toInt();
+        if (pct < 0) pct = 0;
+        if (pct > 100) pct = 100;
+        newNivel = RAW_MIN + (RAW_MAX - RAW_MIN) * pct / 100;
       } else {
         // Intenta parsearlo como numero (ej: si envían el valor del slider en un futuro)
         long n = value.toInt();
@@ -258,7 +263,7 @@ void setup() {
   pCharBattery->addDescriptor(new BLE2902()); // Vital para que Flutter en iOS reciba notificaciones
   
   // Establecer el valor inicial de la batería
-  String batStr = String(batPorcentaje);
+  String batStr = String(batPorcentaje) + "," + String(batVoltajeMv);
   pCharBattery->setValue(batStr.c_str());
 
   pService->start();
@@ -288,11 +293,13 @@ void loop() {
   // 2. Leer batería cuando corresponda
   actualizarBateriaSiToca();
 
-  // 3. Notificar a la app si el % de batería cambió
-  if (deviceConnected && batPorcentaje != lastNotifiedBat) {
+  // 3. Notificar a la app de la bateria periódicamente o si cambió
+  static uint32_t lastNotifyTime = 0;
+  if (deviceConnected && (batPorcentaje != lastNotifiedBat || millis() - lastNotifyTime > 5000)) {
     lastNotifiedBat = batPorcentaje;
+    lastNotifyTime = millis();
     if (pCharBattery) {
-      String batStr = String(batPorcentaje);
+      String batStr = String(batPorcentaje) + "," + String(batVoltajeMv);
       pCharBattery->setValue(batStr.c_str());
       pCharBattery->notify(); // Push de la batería hacia Flutter
     }
