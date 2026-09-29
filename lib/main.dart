@@ -13,6 +13,8 @@ final Guid? targetServiceUuid =
     Guid('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
 final Guid? targetWriteCharacteristicUuid =
     Guid('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+final Guid? targetBatteryCharacteristicUuid =
+    Guid('beb5483e-36e1-4688-b7f5-ea07361b26a9');
 
 /// El ESP acepta exactamente "ON" / "OFF" (UTF-8, mayúsculas).
 const String commandOn = 'ON';
@@ -54,11 +56,14 @@ class ControlGafasPage extends StatefulWidget {
 class _ControlGafasPageState extends State<ControlGafasPage> {
   BluetoothDevice? _device;
   BluetoothCharacteristic? _writeCharacteristic;
+  BluetoothCharacteristic? _batteryCharacteristic;
   StreamSubscription<BluetoothConnectionState>? _connectionSubscription;
+  StreamSubscription<List<int>>? _batterySubscription;
   
   // Nuevas variables para medir la señal
   Timer? _rssiTimer;
   int? _rssi;
+  int? _batteryLevel;
 
   bool _isBusy = false;
   bool _isConnected = false;
@@ -69,6 +74,7 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
   void dispose() {
     _stopRssiTimer();
     _connectionSubscription?.cancel();
+    _batterySubscription?.cancel();
     unawaited(_disconnectQuietly());
     super.dispose();
   }
@@ -189,39 +195,80 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
     }
   }
 
-  Future<BluetoothCharacteristic> _resolveWriteCharacteristic(
-    BluetoothDevice device,
-  ) async {
+  Future<void> _resolveCharacteristics(BluetoothDevice device) async {
     final services = await device.discoverServices();
-
-    if (targetServiceUuid != null && targetWriteCharacteristicUuid != null) {
-      for (final service in services) {
-        if (service.uuid != targetServiceUuid) continue;
-        for (final characteristic in service.characteristics) {
-          if (characteristic.uuid == targetWriteCharacteristicUuid &&
-              (characteristic.properties.write ||
-                  characteristic.properties.writeWithoutResponse)) {
-            return characteristic;
-          }
-        }
-      }
-      throw Exception(
-        'No se encontró la característica de escritura configurada.',
-      );
-    }
+    BluetoothCharacteristic? writeChar;
+    BluetoothCharacteristic? batteryChar;
 
     for (final service in services) {
+      if (targetServiceUuid != null && service.uuid != targetServiceUuid) continue;
       for (final characteristic in service.characteristics) {
-        if (characteristic.properties.write ||
-            characteristic.properties.writeWithoutResponse) {
-          return characteristic;
+        if (characteristic.uuid == targetWriteCharacteristicUuid) {
+          writeChar = characteristic;
+        } else if (characteristic.uuid == targetBatteryCharacteristicUuid) {
+          batteryChar = characteristic;
         }
       }
     }
 
-    throw Exception(
-      'El dispositivo no expone ninguna característica de escritura BLE.',
-    );
+    if (writeChar == null) {
+      for (final service in services) {
+        for (final characteristic in service.characteristics) {
+          if (characteristic.properties.write ||
+              characteristic.properties.writeWithoutResponse) {
+            writeChar = characteristic;
+            break;
+          }
+        }
+        if (writeChar != null) break;
+      }
+    }
+
+    if (writeChar == null) {
+      throw Exception('El dispositivo no expone ninguna característica de escritura BLE.');
+    }
+
+    _writeCharacteristic = writeChar;
+    _batteryCharacteristic = batteryChar;
+  }
+
+  Future<void> _subscribeToBattery() async {
+    final char = _batteryCharacteristic;
+    if (char == null) return;
+
+    await _batterySubscription?.cancel();
+
+    if (char.properties.notify || char.properties.indicate) {
+      await char.setNotifyValue(true);
+      _batterySubscription = char.onValueReceived.listen((value) {
+        if (value.isNotEmpty) {
+          final strValue = utf8.decode(value);
+          final intValue = int.tryParse(strValue);
+          if (intValue != null && mounted) {
+            setState(() {
+              _batteryLevel = intValue;
+            });
+          }
+        }
+      });
+    }
+
+    if (char.properties.read) {
+      try {
+        final value = await char.read();
+        if (value.isNotEmpty) {
+          final strValue = utf8.decode(value);
+          final intValue = int.tryParse(strValue);
+          if (intValue != null && mounted) {
+            setState(() {
+              _batteryLevel = intValue;
+            });
+          }
+        }
+      } catch (e) {
+        // Ignorar
+      }
+    }
   }
 
   Future<void> _listenConnection(BluetoothDevice device) async {
@@ -233,6 +280,9 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
         _isConnected = connected;
         if (!connected) {
           _writeCharacteristic = null;
+          _batteryCharacteristic = null;
+          _batteryLevel = null;
+          _batterySubscription?.cancel();
           _status = 'Desconectado';
           _stopRssiTimer();
           _rssi = null;
@@ -267,7 +317,8 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
     await _listenConnection(device);
 
     await _setStatus('Descubriendo servicios…');
-    final writeCharacteristic = await _resolveWriteCharacteristic(device);
+    await _resolveCharacteristics(device);
+    await _subscribeToBattery();
 
     final displayName =
         device.platformName.isEmpty ? device.remoteId.str : device.platformName;
@@ -275,7 +326,6 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
     if (!mounted) return;
     setState(() {
       _device = device;
-      _writeCharacteristic = writeCharacteristic;
       _isConnected = true;
       _status = 'Conectado a $displayName';
     });
@@ -511,7 +561,16 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
                                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                     children: [
                                       _buildSignalColumn(), // Modificado para barras dinámicas
-                                      _buildStatusColumn('BATERÍA', 'N/A', Icons.battery_unknown, Colors.grey),
+                                      _buildStatusColumn(
+                                        'BATERÍA',
+                                        _batteryLevel != null ? '$_batteryLevel%' : 'N/A',
+                                        _batteryLevel != null
+                                            ? (_batteryLevel! > 20 ? Icons.battery_full : Icons.battery_alert)
+                                            : Icons.battery_unknown,
+                                        _batteryLevel != null
+                                            ? (_batteryLevel! > 20 ? const Color(0xFF00FF66) : Colors.redAccent)
+                                            : Colors.grey,
+                                      ),
                                       _buildStatusColumn('ESTADO', 'N/A', Icons.help_outline, Colors.grey),
                                     ],
                                   ),
