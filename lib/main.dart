@@ -463,6 +463,7 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
                     // --- SECCIÓN 1 Y 2: HEADER (CON FONDO HEAD.PNG) Y LABELS ---
                     Container(
                       width: double.infinity,
+                      height: 240,
                       decoration: const BoxDecoration(
                         image: DecorationImage(
                           image: AssetImage('lib/public/LogosFAC/head.png'),
@@ -471,62 +472,58 @@ class _ControlGafasPageState extends State<ControlGafasPage> {
                         ),
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                      child: Column(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Escudos superiores
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Image.asset(
-                                'lib/public/LogosFAC/Escudo Fuerza Aeroespacial Colombiana- Vertical.png',
-                                width: 80,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(Icons.shield, color: Colors.white54, size: 50),
-                              ),
-                              Image.asset(
-                                'lib/public/LogosFAC/ESCUDO CACOM-4.png',
-                                width: 80,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(Icons.security, color: Colors.white54, size: 50),
-                              ),
-                            ],
+                          Image.asset(
+                            'lib/public/LogosFAC/Escudo Fuerza Aeroespacial Colombiana- Vertical.png',
+                            width: 80,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.shield, color: Colors.white54, size: 50),
                           ),
-                          const SizedBox(height: 40),
-
-                          // Labels centrales
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(width: 30, height: 3, color: const Color(0xFF00FF66)),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'VISOR FAC',
-                                style: TextStyle(
-                                  color: Color(0xFF00FF66),
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 4,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Container(width: 30, height: 3, color: const Color(0xFF00FF66)),
-                            ],
+                          Image.asset(
+                            'lib/public/LogosFAC/ESCUDO CACOM-4.png',
+                            width: 80,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.security, color: Colors.white54, size: 50),
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'SISTEMA DE LIMITACIÓN VISUAL',
-                            style: TextStyle(color: Colors.white70, fontSize: 12, letterSpacing: 2),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'EIHFA - ENTRENAMIENTO QUE SALVAN VIDAS',
-                            style: TextStyle(color: Color(0xFF00FF66), fontSize: 10, letterSpacing: 1),
-                          ),
-                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Labels centrales (fuera del fondo para mejor lectura)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(width: 30, height: 3, color: const Color(0xFF00FF66)),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'VISOR FAC',
+                          style: TextStyle(
+                            color: Color(0xFF00FF66),
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 4,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(width: 30, height: 3, color: const Color(0xFF00FF66)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'SISTEMA DE LIMITACIÓN VISUAL',
+                      style: TextStyle(color: Colors.white70, fontSize: 12, letterSpacing: 2),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'EIHFA - ENTRENAMIENTO QUE SALVAN VIDAS',
+                      style: TextStyle(color: Color(0xFF00FF66), fontSize: 10, letterSpacing: 1),
+                    ),
+                    const SizedBox(height: 10),
 
                     // --- SECCIÓN 3 Y 4: TARJETAS DE DATOS ---
                     Padding(
