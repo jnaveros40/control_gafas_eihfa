@@ -2,21 +2,21 @@
  * Control de brillo de pantalla por PWM a 8 kHz
  * ESP32-C3 SuperMini en modo Access Point + servidor web
  *
- * La ventana util del panel es 0 - 8% de duty.
- * Ese tramo se expande a una escala de 0 - 100% para el usuario.
+ * El duty cycle solo puede variar dentro de un rango configurable
+ * (DUTY_MIN - DUTY_MAX). Por defecto: 97% - 100%.
+ * Para cambiar el rango, edita unicamente esas dos constantes.
  *
  * El navegador evita acumular peticiones:
  * solo puede haber UNA peticion /set en vuelo.
  * Si el usuario mueve el slider mientras se procesa,
  * se envia solamente el valor mas reciente.
  *
- * NUEVO:
  * - Lectura de bateria LiPo 3.7V por un divisor resistivo
  *   hacia un pin ADC, convertida a % con una curva de
  *   descarga aproximada (no lineal).
- * - Varias medidas para evitar que el WiFi en modo AP
- *   se caiga (sleep de radio, canal fijo, vigilancia
- *   del AP y diagnostico de reinicios).
+ * - Medidas para evitar que el WiFi en modo AP se caiga
+ *   (sleep de radio, canal fijo, vigilancia del AP y
+ *   diagnostico de reinicios).
  *
  * Conectarse a la red "PDLC-ESP32"
  * y abrir http://192.168.4.1
@@ -41,17 +41,20 @@ const int AP_CHANNEL = 1;
 const int AP_MAX_CONN = 4;
 
 // GPIO usado para PWM
-const int PWM_PIN = 4;
+const int PWM_PIN = 3;
 
 // PWM
 const int PWM_FREQ = 8000;   // 8 kHz -> periodo de 125 us
 const int PWM_RES  = 12;     // 12 bits -> 4096 cuentas
+                             // (13 bits es el maximo a 8 kHz en ESP32-C3)
 
 // Solo se usa en Arduino-ESP32 2.x
 const int PWM_CH = 0;
 
-// Duty maximo de la ventana util
-const float DUTY_TOPE = 8.0f;
+// Rango de duty permitido (en %). Cambia solo estas dos lineas.
+// Ejemplos: 97-100, 95-97, 90-100...
+const float DUTY_MIN = 95.0f;
+const float DUTY_MAX = 100.0f;
 
 
 // ---------------- Bateria ----------------
@@ -62,15 +65,26 @@ const int BAT_ADC_PIN = 0;
 
 // Divisor resistivo: bateria+ -> R1 -> nodo ADC -> R2 -> GND
 // Con R1 = R2 = 100k, el nodo queda a la mitad del voltaje
-// de la bateria (maximo ~2.1V con batería a 4.2V), dentro
+// de la bateria (maximo ~2.1V con bateria a 4.2V), dentro
 // del rango seguro del ADC (0 - ~3.3V con atenuacion 11dB).
 // Ese divisor consume ~21 uA en reposo, despreciable.
-// Se recomienda un capacitor ceramico de 100nF entre el
-// nodo ADC y GND, pegado al pin, para filtrar ruido del PWM.
+//
+// IMPORTANTE: las rafagas de transmision del WiFi consumen
+// picos de corriente altos y breves (milisegundos). Con la
+// resistencia interna de la bateria, eso produce caidas de
+// voltaje instantaneas que un multimetro (con refresco lento
+// de pantalla) promedia visualmente, pero que el ADC puede
+// "atrapar" en plena caida si la ventana de muestreo es corta.
+// Para filtrar eso en hardware, usa un capacitor mas grande
+// de lo habitual: 1-10 uF ceramico entre el nodo ADC y GND,
+// pegado al pin (ademas de, o en vez de, el 100nF original).
 const float DIVIDER_RATIO = 2.0f;
 
-// Cuantas lecturas se promedian por cada actualizacion
-const int BAT_SAMPLES = 16;
+// Cuantas lecturas se promedian por cada actualizacion.
+// Se espacian (ver delay abajo) para cubrir una ventana de
+// tiempo mas larga y no quedar sesgado por una sola rafaga
+// de WiFi.
+const int BAT_SAMPLES = 40;
 
 // Factor de calibracion empirico: el ADC de la ESP32-C3
 // (incluso con analogReadMilliVolts calibrado de fabrica)
@@ -121,14 +135,18 @@ uint32_t batUltimaLectura = 0;
 // 12 bits = 4096 cuentas
 const uint32_t RAW_FULL = 1UL << PWM_RES;
 
-// 8% de 4096 = 327.68 -> 328 cuentas
+// Limites del rango en cuentas
+const uint32_t RAW_MIN =
+      (uint32_t)lroundf(DUTY_MIN * RAW_FULL / 100.0f);
+
 const uint32_t RAW_MAX =
-      (uint32_t)lroundf(DUTY_TOPE * RAW_FULL / 100.0f);
+      (uint32_t)lroundf(DUTY_MAX * RAW_FULL / 100.0f);
 
 
 // ---------------- Estado ----------------
 
-uint32_t nivel = 0;
+// Arranca en el minimo del rango
+uint32_t nivel = RAW_MIN;
 
 WebServer server(80);
 
@@ -137,41 +155,16 @@ uint32_t apUltimoChequeo = 0;
 const uint32_t AP_CHEQUEO_MS = 10000;
 
 
-// ---------------- Web Log ----------------
-
-String webLogBuffer = "";
-
-void addLog(const char* format, ...) {
-  char buf[256];
-  va_list args;
-  va_start(args, format);
-  vsnprintf(buf, sizeof(buf), format, args);
-  va_end(args);
-  
-  Serial.print(buf);
-  
-  uint32_t ms = millis();
-  String msg = "[" + String(ms / 1000) + "." + String(ms % 1000) + "s] " + String(buf);
-  
-  webLogBuffer = msg + webLogBuffer;
-  if(webLogBuffer.length() > 2048) {
-    webLogBuffer = webLogBuffer.substring(0, 2048);
-  }
-}
-
-
 // ---------------- PWM ----------------
 
 void pwmInit() {
 
-  addLog("-> pwmInit(): Configurando pin %d a %d Hz, %d bits de resolucion\n", PWM_PIN, PWM_FREQ, PWM_RES);
-
 #if ESP_ARDUINO_VERSION_MAJOR >= 3
-  addLog("-> pwmInit(): API ESP32 Core v3+ (ledcAttach)\n");
+
   ledcAttach(PWM_PIN, PWM_FREQ, PWM_RES);
 
 #else
-  addLog("-> pwmInit(): API ESP32 Core v2 (ledcSetup/Attach)\n");
+
   ledcSetup(PWM_CH, PWM_FREQ, PWM_RES);
   ledcAttachPin(PWM_PIN, PWM_CH);
 
@@ -191,13 +184,12 @@ void aplicarNivel() {
 
 #endif
 
-  addLog(
-    "-> aplicarNivel(): nivel %lu/%lu | %.1f%% usuario | duty %.3f%% | ton %.3f us\n",
+  Serial.printf(
+    "nivel %lu (rango %lu-%lu) | duty %.3f%% | ton %.3f us\n",
 
     (unsigned long)nivel,
+    (unsigned long)RAW_MIN,
     (unsigned long)RAW_MAX,
-
-    100.0f * nivel / RAW_MAX,
 
     100.0f * nivel / RAW_FULL,
 
@@ -211,27 +203,51 @@ void aplicarNivel() {
 
 void adcBateriaInit() {
 
-#if ESP_ARDUINO_VERSION_MAJOR >= 3
-  analogSetAttenuation(ADC_11db);
-#else
   analogSetPinAttenuation(BAT_ADC_PIN, ADC_11db);
-#endif
+}
+
+
+// Ordena un arreglo pequeno (insertion sort, sobra para 40 elementos)
+void ordenar(uint16_t* datos, int n) {
+
+  for (int i = 1; i < n; i++) {
+
+    uint16_t clave = datos[i];
+    int j = i - 1;
+
+    while (j >= 0 && datos[j] > clave) {
+      datos[j + 1] = datos[j];
+      j--;
+    }
+
+    datos[j + 1] = clave;
+  }
 }
 
 
 uint16_t leerVoltajeBateriaMv() {
 
-  uint32_t suma = 0;
+  static uint16_t muestras[BAT_SAMPLES];
 
+  // Se espacian las muestras ~5ms entre si, cubriendo una
+  // ventana total de ~200ms: suficiente para que entren y
+  // salgan varias rafagas de WiFi dentro de la medicion,
+  // en vez de depender de que el promedio caiga "por suerte"
+  // fuera de una rafaga.
   for (int i = 0; i < BAT_SAMPLES; i++) {
 
-    suma += analogReadMilliVolts(BAT_ADC_PIN);
-    delay(2);
+    muestras[i] = analogReadMilliVolts(BAT_ADC_PIN);
+    delay(5);
   }
 
-  uint32_t promedioNodo = suma / BAT_SAMPLES;
+  ordenar(muestras, BAT_SAMPLES);
 
-  float mv = promedioNodo * DIVIDER_RATIO * BAT_CAL;
+  // La mediana ignora los picos (caidas por rafagas de WiFi)
+  // mucho mejor que un promedio simple, porque un punado de
+  // muestras bajas no puede arrastrar el resultado.
+  uint16_t nodoMediana = muestras[BAT_SAMPLES / 2];
+
+  float mv = nodoMediana * DIVIDER_RATIO * BAT_CAL;
 
   return (uint16_t)lroundf(mv);
 }
@@ -279,8 +295,8 @@ void actualizarBateriaSiToca() {
   batVoltajeMv  = leerVoltajeBateriaMv();
   batPorcentaje = voltajeAPorcentaje(batVoltajeMv);
 
-  addLog(
-    "-> bateria: %u mV (%.2f V) -> %u%%\n",
+  Serial.printf(
+    "bateria: %u mV (%.2f V) -> %u%%\n",
     batVoltajeMv,
     batVoltajeMv / 1000.0f,
     batPorcentaje
@@ -326,8 +342,8 @@ void vigilarAP() {
   if (WiFi.getMode() != WIFI_AP ||
       WiFi.softAPIP() == IPAddress(0, 0, 0, 0)) {
 
-    addLog(
-      "AP caido, reiniciando WiFi...\n"
+    Serial.println(
+      "AP caido, reiniciando WiFi..."
     );
 
     WiFi.softAPdisconnect(true);
@@ -508,21 +524,6 @@ input[type=range]{
   color:#fff
 }
 
-.consola{
-  margin-top:20px;
-  background:#050505;
-  border:1px solid #333;
-  border-radius:9px;
-  padding:12px;
-  font-family:monospace;
-  font-size:.7rem;
-  color:#0f0;
-  height:130px;
-  overflow-y:auto;
-  white-space:pre-wrap;
-  word-break:break-all;
-}
-
 </style>
 
 </head>
@@ -536,7 +537,7 @@ input[type=range]{
   <p class="sub">
     PWM 8 kHz &middot;
     GPIO%PIN% &middot;
-    ventana util 0&ndash;%TOPE%% de duty
+    rango de duty %DMIN%&ndash;%DMAX%%
   </p>
 
 
@@ -572,10 +573,10 @@ input[type=range]{
     <input
       type="range"
       id="s"
-      min="0"
+      min="%RMIN%"
       max="%RMAX%"
       step="1"
-      value="0"
+      value="%RMIN%"
     >
 
     <button class="nudge" id="mas">
@@ -587,11 +588,11 @@ input[type=range]{
 
   <div class="lim">
 
-    <span>0%</span>
+    <span>%DMIN%%</span>
 
     <span id="pasos"></span>
 
-    <span>100%</span>
+    <span>%DMAX%%</span>
 
   </div>
 
@@ -599,7 +600,7 @@ input[type=range]{
   <div class="rapidos">
 
     <button data-p="0">
-      Apagar
+      M&iacute;n
     </button>
 
     <button data-p="25">
@@ -615,13 +616,9 @@ input[type=range]{
     </button>
 
     <button data-p="100">
-      100%
+      M&aacute;x
     </button>
 
-  </div>
-
-  <div class="consola" id="consola">
-    Esperando hardware logs...
   </div>
 
 </div>
@@ -629,6 +626,7 @@ input[type=range]{
 
 <script>
 
+const RMIN = %RMIN%;
 const RMAX = %RMAX%;
 const RFULL = %RFULL%;
 const FREQ = 8000;
@@ -641,7 +639,6 @@ const t = document.getElementById('t');
 const batDiv = document.getElementById('bat');
 const batPct = document.getElementById('batPct');
 const batV = document.getElementById('batV');
-const consola = document.getElementById('consola');
 
 
 // ------------------------------------------------
@@ -663,14 +660,14 @@ function pinta(){
 
   const r = +s.value;
 
+  // Duty real (no relativo al rango)
   v.textContent =
-    (100 * r / RMAX).toFixed(1);
+    (100 * r / RFULL).toFixed(2);
 
   t.textContent =
-    'cuenta ' + r + '/' + RMAX +
-    '   duty ' +
-    (100 * r / RFULL).toFixed(3) +
-    '%   ton ' +
+    'cuenta ' + r +
+    ' (' + RMIN + '-' + RMAX + ')' +
+    '   ton ' +
     (1e6 * r / (RFULL * FREQ)).toFixed(3) +
     ' us';
 }
@@ -682,10 +679,6 @@ function pintaBateria(d){
   batV.textContent = (d.bv / 1000).toFixed(2);
 
   batDiv.classList.toggle('baja', d.bp <= 15);
-  
-  if (d.log) {
-    consola.textContent = d.log;
-  }
 }
 
 
@@ -722,17 +715,12 @@ async function envia(valor){
 
       try{
 
-        const resp = await fetch(
+        await fetch(
           '/set?n=' + encodeURIComponent(n),
           {
             cache: 'no-store'
           }
         );
-        
-        if(resp.ok) {
-          const d = await resp.json();
-          if (d.log) consola.textContent = d.log;
-        }
 
       }catch(e){
 
@@ -779,7 +767,7 @@ document.getElementById('menos').onclick = () => {
 
   s.value =
     Math.max(
-      0,
+      RMIN,
       +s.value - 1
     );
 
@@ -810,7 +798,7 @@ document.getElementById('mas').onclick = () => {
 
 
 // ------------------------------------------------
-// Botones rapidos
+// Botones rapidos (porcentaje dentro del rango)
 // ------------------------------------------------
 
 document
@@ -821,7 +809,8 @@ document
 
       s.value =
         Math.round(
-          RMAX *
+          RMIN +
+          (RMAX - RMIN) *
           (+b.dataset.p) /
           100
         );
@@ -885,7 +874,9 @@ setInterval(() => {
 // Mostrar numero de pasos
 
 document.getElementById('pasos').textContent =
-  RMAX + ' pasos';
+  (RMAX - RMIN) + ' pasos';
+
+pinta();
 
 </script>
 
@@ -903,6 +894,11 @@ void handleRoot() {
   String p = FPSTR(PAGINA);
 
   p.replace(
+    "%RMIN%",
+    String(RAW_MIN)
+  );
+
+  p.replace(
     "%RMAX%",
     String(RAW_MAX)
   );
@@ -918,8 +914,13 @@ void handleRoot() {
   );
 
   p.replace(
-    "%TOPE%",
-    String(DUTY_TOPE, 1)
+    "%DMIN%",
+    String(DUTY_MIN, 1)
+  );
+
+  p.replace(
+    "%DMAX%",
+    String(DUTY_MAX, 1)
   );
 
   server.send(
@@ -933,7 +934,7 @@ void handleRoot() {
 void handleSet() {
 
   if(!server.hasArg("n")){
-    addLog("-> handleSet(): ERROR, peticion sin 'n'\n");
+
     server.send(
       400,
       "text/plain",
@@ -943,60 +944,48 @@ void handleSet() {
     return;
   }
 
-  String argN = server.arg("n");
-  addLog("-> handleSet(): Peticion WiFi recibida n = %s\n", argN.c_str());
 
-  long n = argN.toInt();
+  long n =
+    server.arg("n").toInt();
 
-  if(n < 0) {
-    addLog("-> handleSet(): 'n' < 0, limitando a 0\n");
-    n = 0;
-  }
 
-  if(n > (long)RAW_MAX) {
-    addLog("-> handleSet(): 'n' > RAW_MAX (%lu), limitando\n", (unsigned long)RAW_MAX);
+  if(n < (long)RAW_MIN)
+    n = RAW_MIN;
+
+
+  if(n > (long)RAW_MAX)
     n = RAW_MAX;
-  }
 
-  nivel = (uint32_t)n;
 
-  addLog("-> handleSet(): Se actualizo el 'nivel', enviando al hardware...\n");
+  nivel =
+    (uint32_t)n;
+
+
   aplicarNivel();
 
-  String safeLog = webLogBuffer;
-  safeLog.replace("\\", "\\\\");
-  safeLog.replace("\"", "\\\"");
-  safeLog.replace("\n", "\\n");
-  safeLog.replace("\r", "");
 
   server.send(
     200,
-    "application/json",
-    "{\"n\":" + String(nivel) + ",\"log\":\"" + safeLog + "\"}"
+    "text/plain",
+    String(nivel)
   );
 }
 
 
 void handleEstado() {
 
-  String safeLog = webLogBuffer;
-  safeLog.replace("\\", "\\\\");
-  safeLog.replace("\"", "\\\"");
-  safeLog.replace("\n", "\\n");
-  safeLog.replace("\r", "");
-
   String j =
     "{\"n\":" +
     String(nivel) +
+    ",\"min\":" +
+    String(RAW_MIN) +
     ",\"max\":" +
     String(RAW_MAX) +
     ",\"bv\":" +
     String(batVoltajeMv) +
     ",\"bp\":" +
     String(batPorcentaje) +
-    ",\"log\":\"" +
-    safeLog +
-    "\"}";
+    "}";
 
 
   server.send(
@@ -1034,17 +1023,23 @@ void setup() {
   pwmInit();
 
 
-  // Arranca apagado
+  // Arranca en el minimo del rango
 
   aplicarNivel();
 
 
-  addLog(
-    "Resolucion: %lu cuentas utiles de %lu por periodo\n",
+  Serial.printf(
+    "Rango util: %lu a %lu cuentas de %lu por periodo (%.1f%% - %.1f%%)\n",
+
+    (unsigned long)RAW_MIN,
 
     (unsigned long)RAW_MAX,
 
-    (unsigned long)RAW_FULL
+    (unsigned long)RAW_FULL,
+
+    DUTY_MIN,
+
+    DUTY_MAX
   );
 
 
@@ -1096,8 +1091,8 @@ void setup() {
   server.begin();
 
 
-  addLog(
-    "Servidor HTTP iniciado\n"
+  Serial.println(
+    "Servidor HTTP iniciado"
   );
 
 }
