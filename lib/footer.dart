@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class Footer extends StatelessWidget {
   const Footer({super.key});
@@ -49,71 +50,82 @@ class Footer extends StatelessWidget {
   }
 
   Widget _buildDeveloperCard() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF050B14), // Un azul aún más oscuro para que la caja resalte ligeramente
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white10, width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Logo IngNavs (Circular)
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.orangeAccent.withOpacity(0.5)),
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                'lib/public/LogosFAC/IngNavs.png',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const Center(
-                  child: Text(
-                    'NG',
-                    style: TextStyle(
-                      color: Colors.orangeAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+    return InkWell(
+      onTap: () async {
+        final Uri url = Uri.parse('https://ingnavs.vercel.app/');
+        try {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        } catch (e) {
+          debugPrint('Error al abrir URL: $e');
+        }
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF050B14), // Un azul aún más oscuro para que la caja resalte ligeramente
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white10, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Logo IngNavs (Circular)
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.orangeAccent.withOpacity(0.5)),
+              ),
+              child: ClipOval(
+                child: Image.asset(
+                  'lib/public/LogosFAC/IngNavs.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => const Center(
+                    child: Text(
+                      'NG',
+                      style: TextStyle(
+                        color: Colors.orangeAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          // Textos del desarrollador
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Desarrollado por: Ing Navs',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white, 
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  _PulsingDot(),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'Versión 1.0.0',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white70,
-                    ),
+            const SizedBox(width: 12),
+            // Textos del desarrollador
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Desarrollado por: Ing Navs',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white, 
                   ),
-                ],
-              ),
-            ],
-          ),
-        ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    _PulsingDot(),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Versión 1.0.0',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
