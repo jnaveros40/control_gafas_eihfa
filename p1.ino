@@ -137,18 +137,41 @@ uint32_t apUltimoChequeo = 0;
 const uint32_t AP_CHEQUEO_MS = 10000;
 
 
+// ---------------- Web Log ----------------
+
+String webLogBuffer = "";
+
+void addLog(const char* format, ...) {
+  char buf[256];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(buf, sizeof(buf), format, args);
+  va_end(args);
+  
+  Serial.print(buf);
+  
+  uint32_t ms = millis();
+  String msg = "[" + String(ms / 1000) + "." + String(ms % 1000) + "s] " + String(buf);
+  
+  webLogBuffer = msg + webLogBuffer;
+  if(webLogBuffer.length() > 2048) {
+    webLogBuffer = webLogBuffer.substring(0, 2048);
+  }
+}
+
+
 // ---------------- PWM ----------------
 
 void pwmInit() {
 
-  Serial.printf("-> pwmInit(): Configurando pin %d a %d Hz, %d bits de resolucion\n", PWM_PIN, PWM_FREQ, PWM_RES);
+  addLog("-> pwmInit(): Configurando pin %d a %d Hz, %d bits de resolucion\n", PWM_PIN, PWM_FREQ, PWM_RES);
 
 #if ESP_ARDUINO_VERSION_MAJOR >= 3
-  Serial.println("-> pwmInit(): API ESP32 Core v3+ (ledcAttach)");
+  addLog("-> pwmInit(): API ESP32 Core v3+ (ledcAttach)\n");
   ledcAttach(PWM_PIN, PWM_FREQ, PWM_RES);
 
 #else
-  Serial.println("-> pwmInit(): API ESP32 Core v2 (ledcSetup/Attach)");
+  addLog("-> pwmInit(): API ESP32 Core v2 (ledcSetup/Attach)\n");
   ledcSetup(PWM_CH, PWM_FREQ, PWM_RES);
   ledcAttachPin(PWM_PIN, PWM_CH);
 
@@ -168,7 +191,7 @@ void aplicarNivel() {
 
 #endif
 
-  Serial.printf(
+  addLog(
     "-> aplicarNivel(): nivel %lu/%lu | %.1f%% usuario | duty %.3f%% | ton %.3f us\n",
 
     (unsigned long)nivel,
@@ -256,7 +279,7 @@ void actualizarBateriaSiToca() {
   batVoltajeMv  = leerVoltajeBateriaMv();
   batPorcentaje = voltajeAPorcentaje(batVoltajeMv);
 
-  Serial.printf(
+  addLog(
     "-> bateria: %u mV (%.2f V) -> %u%%\n",
     batVoltajeMv,
     batVoltajeMv / 1000.0f,
@@ -303,8 +326,8 @@ void vigilarAP() {
   if (WiFi.getMode() != WIFI_AP ||
       WiFi.softAPIP() == IPAddress(0, 0, 0, 0)) {
 
-    Serial.println(
-      "AP caido, reiniciando WiFi..."
+    addLog(
+      "AP caido, reiniciando WiFi...\n"
     );
 
     WiFi.softAPdisconnect(true);
@@ -485,6 +508,21 @@ input[type=range]{
   color:#fff
 }
 
+.consola{
+  margin-top:20px;
+  background:#050505;
+  border:1px solid #333;
+  border-radius:9px;
+  padding:12px;
+  font-family:monospace;
+  font-size:.7rem;
+  color:#0f0;
+  height:130px;
+  overflow-y:auto;
+  white-space:pre-wrap;
+  word-break:break-all;
+}
+
 </style>
 
 </head>
@@ -582,6 +620,10 @@ input[type=range]{
 
   </div>
 
+  <div class="consola" id="consola">
+    Esperando hardware logs...
+  </div>
+
 </div>
 
 
@@ -599,6 +641,7 @@ const t = document.getElementById('t');
 const batDiv = document.getElementById('bat');
 const batPct = document.getElementById('batPct');
 const batV = document.getElementById('batV');
+const consola = document.getElementById('consola');
 
 
 // ------------------------------------------------
@@ -639,6 +682,10 @@ function pintaBateria(d){
   batV.textContent = (d.bv / 1000).toFixed(2);
 
   batDiv.classList.toggle('baja', d.bp <= 15);
+  
+  if (d.log) {
+    consola.textContent = d.log;
+  }
 }
 
 
@@ -675,12 +722,17 @@ async function envia(valor){
 
       try{
 
-        await fetch(
+        const resp = await fetch(
           '/set?n=' + encodeURIComponent(n),
           {
             cache: 'no-store'
           }
         );
+        
+        if(resp.ok) {
+          const d = await resp.json();
+          if (d.log) consola.textContent = d.log;
+        }
 
       }catch(e){
 
@@ -881,7 +933,7 @@ void handleRoot() {
 void handleSet() {
 
   if(!server.hasArg("n")){
-    Serial.println("-> handleSet(): ERROR, peticion sin 'n'");
+    addLog("-> handleSet(): ERROR, peticion sin 'n'\n");
     server.send(
       400,
       "text/plain",
@@ -892,34 +944,46 @@ void handleSet() {
   }
 
   String argN = server.arg("n");
-  Serial.printf("-> handleSet(): Peticion WiFi recibida n = %s\n", argN.c_str());
+  addLog("-> handleSet(): Peticion WiFi recibida n = %s\n", argN.c_str());
 
   long n = argN.toInt();
 
   if(n < 0) {
-    Serial.println("-> handleSet(): 'n' < 0, limitando a 0");
+    addLog("-> handleSet(): 'n' < 0, limitando a 0\n");
     n = 0;
   }
 
   if(n > (long)RAW_MAX) {
-    Serial.printf("-> handleSet(): 'n' > RAW_MAX (%lu), limitando\n", (unsigned long)RAW_MAX);
+    addLog("-> handleSet(): 'n' > RAW_MAX (%lu), limitando\n", (unsigned long)RAW_MAX);
     n = RAW_MAX;
   }
 
   nivel = (uint32_t)n;
 
-  Serial.println("-> handleSet(): Se actualizo el 'nivel', enviando al hardware...");
+  addLog("-> handleSet(): Se actualizo el 'nivel', enviando al hardware...\n");
   aplicarNivel();
+
+  String safeLog = webLogBuffer;
+  safeLog.replace("\\", "\\\\");
+  safeLog.replace("\"", "\\\"");
+  safeLog.replace("\n", "\\n");
+  safeLog.replace("\r", "");
 
   server.send(
     200,
-    "text/plain",
-    String(nivel)
+    "application/json",
+    "{\"n\":" + String(nivel) + ",\"log\":\"" + safeLog + "\"}"
   );
 }
 
 
 void handleEstado() {
+
+  String safeLog = webLogBuffer;
+  safeLog.replace("\\", "\\\\");
+  safeLog.replace("\"", "\\\"");
+  safeLog.replace("\n", "\\n");
+  safeLog.replace("\r", "");
 
   String j =
     "{\"n\":" +
@@ -930,7 +994,9 @@ void handleEstado() {
     String(batVoltajeMv) +
     ",\"bp\":" +
     String(batPorcentaje) +
-    "}";
+    ",\"log\":\"" +
+    safeLog +
+    "\"}";
 
 
   server.send(
@@ -973,7 +1039,7 @@ void setup() {
   aplicarNivel();
 
 
-  Serial.printf(
+  addLog(
     "Resolucion: %lu cuentas utiles de %lu por periodo\n",
 
     (unsigned long)RAW_MAX,
@@ -1030,8 +1096,8 @@ void setup() {
   server.begin();
 
 
-  Serial.println(
-    "Servidor HTTP iniciado"
+  addLog(
+    "Servidor HTTP iniciado\n"
   );
 
 }
