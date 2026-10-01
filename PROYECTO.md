@@ -1,212 +1,134 @@
 # Control de gafas EIHFA
 
-Documento de referencia del proyecto para desarrollo en Flutter / Xcode (iOS y macOS).
+Documento de referencia del proyecto para desarrollo en Flutter / Android / iOS / Web / Desktop.
 
 ---
 
 ## 1. De qué trata
 
-Aplicación Flutter para **iOS y macOS** que controla por **Bluetooth Low Energy (BLE)** las **gafas de entrenamiento de pilotos de la EIHFA**.
+Aplicación Flutter para **Android, iOS, macOS y otras plataformas** que controla por **Bluetooth Low Energy (BLE)** las **gafas de entrenamiento de entrenamiento de pilotos de la EIHFA** (Visor FAC).
 
-La interfaz muestra el título:
+La interfaz incluye el encabezado institucional (Fuerza Aeroespacial Colombiana y CACOM-4) y permite el control total del visor a través de:
 
-> **Control de gafas de entrenamientos de pilotos de la EIHFA**
+| Acción / Control | Comando BLE enviado / Operación | Descripción |
+|------------------|--------------------------------|-------------|
+| **Encender (ON)** | Cadena `"ON"` o `"PCT:100"` | Establece el visor al nivel máximo de intensidad permitida. |
+| **Apagar (OFF)** | Cadena `"OFF"` o `"PCT:0"` | Apaga la opacidad / pantalla PWM (nivel mínimo). |
+| **Slider de Intensidad (0 - 100%)** | Cadena `"PCT:<porcentaje>"` | Ajuste continuo proporcional del brillo / opacidad del visor. |
+| **Monitoreo de Batería** | Suscripción / Lectura a `beb5483e-36e1-4688-b7f5-ea07361b26a9` | Recibe lecturas periódicas en formato `porcentaje,milivoltios` (ej: `85,3980`). |
+| **Indicador de Señal (RSSI)** | Consulta de RSSI periódica (cada 2s) | Muestra la intensidad del enlace BLE en dBm. |
 
-Y dos acciones principales:
-
-| Botón | Comando BLE enviado |
-|--------|---------------------|
-| **Encender** | Cadena de texto `"on"` |
-| **Apagar** | Cadena de texto `"off"` |
-
-El comando se escribe en la **característica (characteristic) de escritura** del periférico BLE.
+El comando se escribe en la **característica de escritura PWM** del periférico BLE (`VISOR_FAC`).
 
 ---
 
-## 2. Stack técnico
+## 2. Stack técnico y Parámetros BLE
+
+### 2.1 Especificación General
 
 | Elemento | Valor |
 |----------|--------|
 | Framework | Flutter (SDK ^3.8.1) |
 | Paquete BLE | `flutter_blue_plus: ^2.3.10` |
-| Plataformas objetivo | iOS, macOS |
-| Código principal | `lib/main.dart` |
-| Nombre del paquete | `control_gafas_eihfa` |
+| Plataformas objetivo | Android, iOS, macOS, Windows, Web |
+| Código principal app | `lib/main.dart`, `lib/footer.dart` |
+| Firmware ESP32 | `p1.ino` / `codigoesp.ino` (ESP32-C3 SuperMini) |
 
----
-
-## 3. Cómo está implementado
-
-### 3.1 Flujo lógico
-
-```
-Usuario pulsa Encender / Apagar
-        │
-        ▼
-¿Bluetooth del sistema encendido?
-        │
-        ▼
-Buscar dispositivo ya vinculado / del sistema
-        │ (si no hay)
-        ▼
-Escanear BLE (timeout ~8 s) y conectar
-        │
-        ▼
-discoverServices()
-        │
-        ▼
-Localizar característica writable
-        │
-        ▼
-write( utf8.encode("on" | "off") )
-```
-
-### 3.2 Archivo principal (`lib/main.dart`)
-
-- **`GafasEihfaApp`**: `MaterialApp` con tema y pantalla de control.
-- **`ControlGafasPage`**: UI + lógica BLE (estado de conexión, botones, mensajes).
-
-Constantes configurables (arriba del archivo):
+### 2.2 Parámetros del Periférico BLE (`VISOR_FAC`)
 
 ```dart
-const String targetDeviceName = '';           // Nombre parcial del periférico
-const Guid? targetServiceUuid = null;         // UUID del servicio GATT
-const Guid? targetWriteCharacteristicUuid = null; // UUID de la char. de escritura
+const String targetDeviceName = 'VISOR_FAC';
+final Guid targetServiceUuid = Guid('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
+final Guid targetWriteCharacteristicUuid = Guid('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+final Guid targetBatteryCharacteristicUuid = Guid('beb5483e-36e1-4688-b7f5-ea07361b26a9');
 ```
-
-Comportamiento actual si están vacíos / `null`:
-
-1. Acepta cualquier dispositivo BLE cercano (o el primero vinculado).
-2. Usa la **primera característica con `write` o `writeWithoutResponse`**.
-
-### 3.3 UI implementada
-
-- Título fijo de la EIHFA.
-- Indicador de estado BLE (conectado / desconectado) y mensaje de estado.
-- Botones **Encender** y **Apagar**.
-- Indicador de carga mientras hay una operación en curso.
-- SnackBars ante errores.
-
-### 3.4 Permisos Apple (ya aplicados en el repo)
-
-#### iOS — `ios/Runner/Info.plist`
-
-```xml
-<key>NSBluetoothAlwaysUsageDescription</key>
-<string>Esta aplicación necesita Bluetooth para conectar y controlar las gafas de entrenamiento de pilotos de la EIHFA.</string>
-
-<key>NSBluetoothPeripheralUsageDescription</key>
-<string>Esta aplicación necesita Bluetooth para conectar y controlar las gafas de entrenamiento de pilotos de la EIHFA.</string>
-```
-
-#### macOS — `macos/Runner/Info.plist`
-
-Las mismas dos claves (`NSBluetoothAlwaysUsageDescription` y `NSBluetoothPeripheralUsageDescription`).
-
-#### macOS — Entitlements (sandbox)
-
-En `macos/Runner/DebugProfile.entitlements` y `macos/Runner/Release.entitlements`:
-
-```xml
-<key>com.apple.security.device.bluetooth</key>
-<true/>
-```
-
-En Xcode también debe quedar marcado:
-
-**Runner → Signing & Capabilities → App Sandbox → Hardware → Bluetooth**
 
 ---
 
-## 4. Checklist Xcode (al abrir el proyecto)
+## 3. Arquitectura e Implementación
 
-Abrir workspaces:
+### 3.1 Flujo de Conexión y Control BLE
 
-- iOS: `ios/Runner.xcworkspace`
-- macOS: `macos/Runner.xcworkspace`
+```
+   Usuario interactúa (Switch, Slider, Encender/Apagar)
+                            │
+                            ▼
+              ¿Permisos BLE y Adaptador ON?
+                            │
+                            ▼
+       Buscar dispositivo vinculado / `VISOR_FAC`
+                            │ (si no está vinculado)
+                            ▼
+         Escanear BLE por Service UUID (8s timeout)
+                            │
+                            ▼
+       Conectar a `VISOR_FAC` y Descubrir Servicios
+                            │
+                            ├────────────────────────────────────────┐
+                            ▼                                        ▼
+          Suscribirse a Notificaciones Batería          Medición Periódica RSSI (2s)
+                            │
+                            ▼
+          Enviar comando ASCII ("PCT:X", "ON", "OFF") 
+           por Característica de Escritura PWM
+```
 
-Antes de probar en dispositivo real:
+### 3.2 Protocolo de Comandos BLE (Firmware ESP32-C3)
 
-1. [ ] Team / Signing configurado (Apple Developer).
-2. [ ] Bundle Identifier correcto.
-3. [ ] Bluetooth del Mac/iPhone **activado**.
-4. [ ] Probar en **dispositivo físico** (el simulador no sirve bien para BLE).
-5. [ ] macOS: App Sandbox → Hardware → **Bluetooth** habilitado.
-6. [ ] Confirmar que `Info.plist` tiene las claves de privacidad BLE.
-7. [ ] Aceptar el diálogo del sistema de permiso Bluetooth la primera vez.
+El firmware (`p1.ino`) interpreta las siguientes cadenas enviadas mediante UTF-8:
 
-Comandos útiles desde la raíz del repo:
+- **`ON`**: Configura el nivel PWM al duty cycle máximo configurado en hardware (`RAW_MAX`).
+- **`OFF`**: Configura el nivel PWM al duty cycle mínimo (`RAW_MIN`).
+- **`PCT:<0-100>`**: Ajusta de forma lineal el nivel PWM entre `DUTY_MIN` (95%) y `DUTY_MAX` (100%).
+- **Valor numérico libre**: Acepta directamente el valor entero del *duty cycle raw*.
+
+---
+
+## 4. Componentes y UI Implementada
+
+- **Encabezado Institucional:** Imagen de cabecera (`head.png`), Escudo FAC (`Escudo Fuerza Aeroespacial Colombiana- Vertical.png`) y Escudo CACOM-4 (`ESCUDO CACOM-4.png`).
+- **Control Principal:** Switch interactivo ON/OFF y Slider desplegable (0 a 100%).
+- **Indicadores en Tiempo Real:** 
+  - Nivel de batería (porcentaje e indicador de voltaje en mV).
+  - Nivel de señal BLE (RSSI en dBm).
+  - Estado del enlace y notificaciones contextuales (SnackBars).
+- **Footer Dinámico (`lib/footer.dart`):** Enlaces e información complementaria de la institución.
+
+---
+
+## 5. Permisos y Configuración Nativa
+
+### Android (`android/app/src/main/AndroidManifest.xml`)
+
+Permisos de Bluetooth y Ubicación configurados:
+- `BLUETOOTH`, `BLUETOOTH_ADMIN`
+- `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`
+- `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`
+
+### Apple iOS / macOS (`ios/Runner/Info.plist`, `macos/Runner/Info.plist`)
+
+- `NSBluetoothAlwaysUsageDescription`: Mensaje explicativo para acceso a Bluetooth.
+- `NSBluetoothPeripheralUsageDescription`: Mensaje explicativo para periferia BLE.
+- macOS Entitlements: `com.apple.security.device.bluetooth` activado.
+
+---
+
+## 6. Ejecución y Desarrollo
+
+Para ejecutar el proyecto en un dispositivo físico conectado:
 
 ```bash
+# Obtener dependencias
 flutter pub get
+
+# Listar dispositivos físicos conectados
+flutter devices
+
+# Compilar y ejecutar
 flutter run -d <id_dispositivo>
-flutter devices   # listar dispositivos / Mac
 ```
 
 ---
 
-## 5. Qué falta implementar / decidir
+*Última actualización: Alineada con la especificación del firmware ESP32-C3 (`p1.ino`) y la aplicación Flutter (`lib/main.dart`).*
 
-Pendiente respecto al hardware real y a producto:
-
-### 5.1 Crítico (hardware)
-
-- [ ] **Nombre BLE exacto** de las gafas → rellenar `targetDeviceName`.
-- [ ] **UUID del servicio GATT** → `targetServiceUuid`.
-- [ ] **UUID de la característica de escritura** → `targetWriteCharacteristicUuid`.
-- [ ] Confirmar que el firmware espera exactamente `"on"` / `"off"` en UTF-8 (sin `\n`, sin CRC, etc.).
-- [ ] Probar write **with response** vs **without response** según lo que acepte el periférico.
-
-Ejemplo típico (Nordic UART / NUS), solo si el hardware lo usa:
-
-```dart
-const String targetDeviceName = 'NOMBRE_REAL';
-const Guid? targetServiceUuid =
-    Guid('6E400001-B5A3-F393-E0A9-E50E24DCCA9E');
-const Guid? targetWriteCharacteristicUuid =
-    Guid('6E400002-B5A3-F393-E0A9-E50E24DCCA9E');
-```
-
-### 5.2 Mejoras de app (recomendadas)
-
-- [ ] Pantalla / lista para elegir dispositivo si hay varios.
-- [ ] Guardar el último `remoteId` y reconectar sin reescaneo completo.
-- [ ] Botón **Desconectar** explícito.
-- [ ] Reconexión automática si se pierde el enlace.
-- [ ] Feedback de lectura/notificación si el firmware confirma el estado.
-- [ ] Modo background BLE (`UIBackgroundModes` → `bluetooth-central`) solo si se necesita.
-- [ ] Icono, splash y nombre de display definitivo en App Store / Mac App Store.
-- [ ] Tests de integración BLE con dispositivo real.
-
-### 5.3 Plataforma / distribución
-
-- [ ] Certificados y perfiles de provisión en Xcode.
-- [ ] Privacy Nutrition Labels / declaración de uso de Bluetooth en App Store Connect.
-- [ ] Revisar licencia de `flutter_blue_plus` (`License.nonprofit` vs comercial si aplica a la organización).
-
----
-
-## 6. Estructura útil del repositorio
-
-```
-control_gafas_eihfa/
-├── lib/main.dart                 # UI + lógica BLE
-├── pubspec.yaml                  # Dependencias (flutter_blue_plus)
-├── PROYECTO.md                   # Este documento
-├── ios/Runner/Info.plist         # Permisos Bluetooth iOS
-├── macos/Runner/Info.plist       # Permisos Bluetooth macOS
-├── macos/Runner/*.entitlements   # Sandbox + Bluetooth
-└── test/widget_test.dart         # Smoke test de UI
-```
-
----
-
-## 7. Notas rápidas
-
-- Sin nombre/UUID configurados, la app puede conectarse al **primer** dispositivo writable que encuentre: conviene fijarlos antes de uso real.
-- `device.connect(license: License.nonprofit, ...)` es requisito de la API actual de `flutter_blue_plus` 2.x.
-- BLE requiere hardware real; no depender del Simulator de iOS ni de entornos sin radio Bluetooth.
-
----
-
-*Última actualización del documento: alineada con la implementación actual en `lib/main.dart` y permisos Apple del repo.*
